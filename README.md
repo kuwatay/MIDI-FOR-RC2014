@@ -1,0 +1,1 @@
+# README.mdThis repository contains the programs created for the RetroChallenge 2024/10 entry (link: https://www.retrochallenge.org/). For more details, please refer to the following link:  https://hackaday.io/project/198195-midi-interface-for-rc2014The project is currently a work in progress.
