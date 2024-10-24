@@ -53,7 +53,7 @@ ERROR:
     JP   END_PROGRAM   ; プログラム終了
 
 END_PROGRAM:
-    RET                ; プログラム終了
+    JP 0               ; プログラム終了
 
 BUFFER:
     DS   80H           ; 読み込みバッファ（128バイト）

@@ -63,7 +63,7 @@ ERROR:
     JP   END_PROGRAM
 
 END_PROGRAM:
-    RET                   ; プログラム終了
+    JP 0                  ; プログラム終了
 
 BUFFER_PTR: DS 2          ; バッファポインタ用メモリ確保
 
