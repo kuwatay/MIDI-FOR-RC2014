@@ -4,7 +4,7 @@
     LD  C, 9        ; BDOS function 9 - print string
     CALL 5          ; Call BDOS
 
-    RET             ; Return to CP/M
+    JP 0             ; Return to CP/M
 
 message:
     DB 'Hello, World!$'  ; The message string terminated with a '$' sign

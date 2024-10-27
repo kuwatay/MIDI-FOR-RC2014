@@ -26,7 +26,7 @@ PRINT_LOOP:
     DJNZ PRINT_LOOP  ; Bカウンタが0になるまでループ
 
 END:
-    RET              ; プログラム終了
+    JP 0             ; プログラム終了
 
 PARMBUF: 
     DB 128		  ; バッファサイズ
