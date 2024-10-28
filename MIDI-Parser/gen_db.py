@@ -13,7 +13,7 @@ def display_file_in_hex(filepath):
                 
                 # 16バイトごとに出力
                 if len(line) == 16:
-                    print(f"\tDB " + ", ".join(line) + f" ; {address:08X}")
+                    print(f"\tDB " + ",".join(line) + f" ; {address:08X}")
                     line = []  # 次の行に備えてリセット
                     address += 16  # アドレスを16バイト進める
                 
