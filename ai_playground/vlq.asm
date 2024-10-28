@@ -1,28 +1,38 @@
             .ORG    $100 ; プログラムの開始位置
 
 ; メインプログラム開始
-            LD      DE,DATA ; データの先頭アドレスをDEに設定
+            LD      DE,DATA1 ; データの先頭アドレスをDEに設定
             CALL    READ_VLQ ; VLQ読み取りサブルーチン呼び出し
-
-; 読み取った値を表示する
             CALL    PRINT_HEX ; HLの内容（読み取ったVLQ値）を16進数で表示
             CALL    PRINT_NEWLINE 
 
             LD      DE,DATA2 ; データの先頭アドレスをDEに設定
             CALL    READ_VLQ ; VLQ読み取りサブルーチン呼び出し
-
-; 読み取った値を表示する
             CALL    PRINT_HEX ; HLの内容（読み取ったVLQ値）を16進数で表示
             CALL    PRINT_NEWLINE 
 
             LD      DE,DATA3 ; データの先頭アドレスをDEに設定
             CALL    READ_VLQ ; VLQ読み取りサブルーチン呼び出し
-
-; 読み取った値を表示する
             CALL    PRINT_HEX ; HLの内容（読み取ったVLQ値）を16進数で表示
             CALL    PRINT_NEWLINE 
-; プログラム終了
+
+            LD      DE,DATA4 ; データの先頭アドレスをDEに設定
+            CALL    READ_VLQ ; VLQ読み取りサブルーチン呼び出し
+            CALL    PRINT_HEX ; HLの内容（読み取ったVLQ値）を16進数で表示
+            CALL    PRINT_NEWLINE 
+            
+            LD      DE,DATA5 ; データの先頭アドレスをDEに設定
+            CALL    READ_VLQ ; VLQ読み取りサブルーチン呼び出し
+            CALL    PRINT_HEX ; HLの内容（読み取ったVLQ値）を16進数で表示
+            CALL    PRINT_NEWLINE 
+           ; プログラム終了
             JP      0 
+; データ配置
+DATA1:      DB      81H,80H,00H ; MIDIのVLQデータ（81h 80h 00h） -> $4000
+DATA2:      DB      0C0H,00H ; MIDIのVLQデータ（C0h 00h） -> $2000
+DATA3:      DB      81H,00H ; MIDIのVLQデータ（81h 00h） -> $80
+DATA4:      DB      83H, 0FFH, 7FH ; MIDIのVLQデータ（83 FF 7F） -> $0000FFFF
+DATA5:      DB      0C0H, 80H, 00H ; MIDIのVLQデータ（C0 80 00） -> $00100000
 
 ; -------------------------------------
 ; READ_VLQ - MIDIのVLQデータを読み取る
@@ -35,12 +45,10 @@ READ_VLQ:
             LD      HL,0 ; HLを初期化（結果格納用）
 
 READ_LOOP:           
-            LD      A,(DE) ; DEアドレスのデータをAにロード
-            AND     7FH ; MSBを除いた7ビットをAに残す
-
-; HLを7ビット左シフトして次の7ビットを格納
-; HLレジスタの値を左に7ビットシフト
-SHIFT_LEFT_7:        
+            LD      A,H  ; CHECK Overflow
+            CP      2
+            JR      NC,OVERFLOW
+SHIFT_LEFT_7:
             SLA     L ; Lレジスタを1ビット左シフト、キャリーに最上位ビットが入る
             RL      H ; Hレジスタを1ビット左シフト、キャリーを最下位ビットに入れる
             SLA     L ; 2ビット目のシフト
@@ -55,6 +63,9 @@ SHIFT_LEFT_7:
             RL      H 
             SLA     L ; 7ビット目のシフト
             RL      H 
+
+            LD      A,(DE) ; DEアドレスのデータをAにロード
+            AND     7FH ; MSBを除いた7ビットをAに残す
 ; Aレジスタの値をHLに加算
 ADD_A_TO_HL:         
             ADD     A,L ; A + Lの結果をAに格納
@@ -70,10 +81,13 @@ ADD_A_TO_HL:
 
             RET      ; HLに累積値を保持してリターン
 
-; データ配置
-DATA:       DB      81H,80H,00H ; MIDIのVLQデータ（81h 80h 00h） -> $4000
-DATA2:      DB      0C0H,00H ; MIDIのVLQデータ（C0h 00h） -> $2000
-DATA3:      DB      81H,00H ; MIDIのVLQデータ（81h 00h） -> $80
+OVERFLOW:
+; 改行を表示
+            LD      DE,OVFL_MSG 
+            LD      C,9 
+            CALL    5 
+            JP      0            
+OVFL_MSG:   DB      'LVQ overflow',0x0D,0x0A,'$'
 
 ;---------------------------------------------------------
 ; サブルーチン：PRINT_HEX
