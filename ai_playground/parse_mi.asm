@@ -254,44 +254,40 @@ OVERFLOW:
             JP      0 
 OVFL_MSG:   DB      "LVQ overflow",0x0D,0x0A,"$" 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; 
 ; トラック内のMIDIイベントを順次パース
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-PARSE_TRACK_EVENTS: 
+; 
+PARSE_TRACK_EVENTS:  
             LD      HL,(PARSE_ADDR) 
-            CALL    PRINT_HEX
-            CALL    PRINT_SPACE
+            CALL    PRINT_HEX 
+            CALL    PRINT_SPACE 
 ; まずデルタタイムを表示
-            LD      DE,(PARSE_ADDR)
+            LD      DE,(PARSE_ADDR) 
             CALL    PARSE_DELTA_TIME 
-            
+
             LD      HL,(PARSE_ADDR) 
-            CALL    PRINT_HEX
-            CALL    PRINT_SPACE
+            CALL    PRINT_HEX 
+            CALL    PRINT_SPACE 
 ; ステータスバイトの確認
             LD      HL,(PARSE_ADDR) 
             LD      A,(HL) 
-            INC     HL
-            LD      (PARSE_ADDR),HL
+            INC     HL 
+            LD      (PARSE_ADDR),HL 
             CP      0FFh 
             JR      Z,SKIP_META_EVENT ; メタイベントの場合はスキップ処理へ
             CP      80h ; ステータスバイトは80h以上
             JP      C,ERROR_Track ; ステータスバイトでなければエラー
-            CALL    PRINT_EVENT_TYPE 
-            INC     HL ; 次のバイトへ
-
-; MIDIイベントの種類によってパースする方法を変える
-; ここでは基本的なノートオン（90h〜9Fh）のイベントを処理
-            LD      A,(HL) 
-            CP      90h ; ノートオンイベント (90h)
-            JR      NZ,CHECK_OTHER_EVENTS 
-; ノートオンイベントの処理
-            CALL    PARSE_NOTE_ON 
+; MIDIイベントの種類によって処理を分ける
+            CP      90h 
+            JR      Z,PARSE_NOTE_ONOFF ; ノートオンイベントの場合
+            CP      80h 
+            JR      Z,PARSE_NOTE_ONOFF ; ノートオフイベントの場合            CALL    PRINT_EVENT_TYPE
+; 他のイベントもここで追加可能
             JP      NEXT_EVENT 
 
-SKIP_META_EVENT:
-            CALL    PRINT_META
-            CALL    PRINT_NEWLINE
+SKIP_META_EVENT:     
+            CALL    PRINT_META 
+            CALL    PRINT_NEWLINE 
 ; メタイベントをスキップ
             LD      HL,(PARSE_ADDR) 
             LD      A,(HL) ; メタイベントの種類を読み飛ばす
@@ -301,7 +297,7 @@ SKIP_META_EVENT:
 ; メタイベントのデータ長を読み込み、HLを進めてスキップ
             LD      DE,HL 
             CALL    READ_VLQ ; データ長を読み込み、HLに格納
-            
+
             ADD     HL,DE ; データ長分だけHLを進める
             LD      (PARSE_ADDR),HL 
             JP      NEXT_EVENT 
@@ -312,13 +308,13 @@ CHECK_OTHER_EVENTS:
 
 NEXT_EVENT:          
 ; 次のMIDIイベントに進む
-;            INC     HL 
-;            LD      (PARSE_ADDR),HL 
-;            RET      
-            JP      PARSE_TRACK_EVENTS
+;            INC     HL
+;            LD      (PARSE_ADDR),HL
+;            RET
+            JP      PARSE_TRACK_EVENTS 
 
-PARSE_NOTE_ON:       
-; ノートオンイベントのパース
+PARSE_NOTE_ONOFF:       
+; ノートオンオフイベントのパース
 ; アドレスをメモリから取得し、2バイト（ノート番号とベロシティ）を表示
             LD      HL,(PARSE_ADDR) 
             INC     HL ; ステータスバイトの次のバイト（ノート番号）
@@ -409,16 +405,16 @@ OUTPUT_DIGIT:
 PRINT_NEWLINE:       
 ; 改行を表示
             LD      DE,CRLF 
-            JP      PRINT_STRING
+            JP      PRINT_STRING 
 
-PRINT_SPACE:
+PRINT_SPACE:         
 ; 空文字を表示
-            LD      DE, SPACE_LABEL
-            JP      PRINT_STRING
-            
-PRINT_META: LD      DE,META_LABEL
-            JP      PRINT_STRING
-            
+            LD      DE,SPACE_LABEL 
+            JP      PRINT_STRING 
+
+PRINT_META: LD      DE,META_LABEL 
+            JP      PRINT_STRING 
+
 PRINT_STRING:        
 ; DEレジスタで指された文字列を表示
             LD      C,9 
@@ -437,11 +433,11 @@ EVENT_LABEL: DB     "Event:","$"
 NOTE_LABEL: DB      "Note:",0Dh,0Ah,"$" 
 VELOCITY_LABEL: DB  "Velocity:",0Dh,0Ah,"$" 
 HEX_STRING: DB      "00","$" ; 16進数表示用の文字列
-SPACE_LABEL: DB     " $"
+SPACE_LABEL: DB     " $" 
 CRLF:       DB      0Dh,0Ah,"$" 
-META_LABEL: DB      "META$"
-NOTEON_LABEL:   DB  "Note ON$"
-NOTEOFF_LABEL:   DB  "Note OFF$"
+META_LABEL: DB      "META$" 
+NOTEON_LABEL: DB    "Note ON$" 
+NOTEOFF_LABEL: DB   "Note OFF$" 
 
 ; MIDI Data dump from Untitled(2)
 MIDI_START:          
@@ -526,5 +522,6 @@ MIDI_START:
             DB      "MThd",00,00,00,06,00,00,00,01,01,80H ; サンプルのMIDIヘッダ
             DB      "MTrk",00,00,08,0d0h,00,0ffh,58h,04,04,02,18h,08,00,0ffh 
             DB      72h,6bh,00,00,08,0d0h,00h,0ffh,58h,04,04,02,18h,08h,00,0ffh 
+
 
 
