@@ -6,15 +6,19 @@ START:
 
 ; ヘッダチャンクのチェック ("MThd" をチェック)
             CALL    CHECK_HEADER 
-
 ; チャンクの長さやフォーマット情報を解析して表示
             CALL    PARSE_HEADER 
+TRACK:               
+            LD      A,0 
+            LD      (PARSE_TRACK_NO),A 
 
+TRACK_LOOP:          
 ; トラックチャンクのチェック ("MTrk" をチェック)
             CALL    CHECK_TRACK_HEADER 
 
 ; トラックデータの長さを表示
             CALL    PARSE_TRACK_HEADER 
+            JP      0 ;for test
 
 ; トラック内のMIDIイベントをパースして表示
             CALL    PARSE_TRACK_EVENTS 
@@ -90,6 +94,7 @@ PARSE_HEADER:
             INC     HL 
             LD      (PARSE_ADDR),HL ; 更新されたアドレスをPARSE_ADDRに保存
             LD      HL,DE 
+            LD      (FORMAT_TYPE),HL ; フォーマットタイプを記録
             CALL    PRINT_HEX 
             CALL    PRINT_NEWLINE 
 
@@ -105,6 +110,7 @@ PARSE_HEADER:
             INC     HL 
             LD      (PARSE_ADDR),HL ; 更新されたアドレスをPARSE_ADDRに保存
             LD      HL,DE 
+            LD      (NUM_OF_TRACK),HL ; トラック数を記録
             CALL    PRINT_HEX 
             CALL    PRINT_NEWLINE 
 
@@ -120,6 +126,7 @@ PARSE_HEADER:
             INC     HL 
             LD      (PARSE_ADDR),HL ; 更新されたアドレスをPARSE_ADDRに保存
             LD      HL,DE 
+            LD      (TIME_DIVISION),HL ; Time Divisionを記録
             CALL    PRINT_HEX 
             CALL    PRINT_NEWLINE 
 ; 
@@ -161,21 +168,24 @@ PARSE_TRACK_HEADER:
             LD      DE,TRACK_LENGTH_LABEL 
             CALL    PRINT_STRING 
 
-; アドレス保存 (その場でスタック操作)
+;
             LD      HL,(PARSE_ADDR) ; 現在のアドレスをHLにロード
-            LD      A,(HL) ; トラック長の最上位バイト
-            CALL    PRINT_HEX_BYTE 
+            LD      D,(HL) ; UPPER 16bit
             INC     HL 
-            LD      A,(HL) 
-            CALL    PRINT_HEX_BYTE 
+            LD      E,(HL) 
+            INC     HL
+            LD      (PARSE_ADDR),HL
+            LD      HL,DE
+            CALL    PRINT_HEX 
+            LD      HL,(PARSE_ADDR) ; 現在のアドレスをHLにロード
+            LD      D,(HL) ; LOWER 16bit
             INC     HL 
-            LD      A,(HL) 
-            CALL    PRINT_HEX_BYTE 
-            INC     HL 
-            LD      A,(HL) 
-            CALL    PRINT_HEX_BYTE 
-            INC     HL 
-            LD      (PARSE_ADDR),HL ; 更新されたアドレスをPARSE_ADDRに保存
+            LD      E,(HL) 
+            INC     HL
+            LD      (PARSE_ADDR),HL
+            LD      HL,DE
+            LD      (PAESE_TRACK_LEN),HL    ; ignore upper 16bit
+            CALL    PRINT_HEX 
             CALL    PRINT_NEWLINE 
             RET      
 ; 
@@ -273,16 +283,21 @@ PARSE_TRACK_EVENTS:
             LD      A,(HL) 
             INC     HL 
             LD      (PARSE_ADDR),HL 
+            PUSH    AF ; for debug
+            CALL    PRINT_HEX_BYTE ; for debug
+            POP     AF ; for debug
             CP      0FFh 
             JR      Z,SKIP_META_EVENT ; メタイベントの場合はスキップ処理へ
-            CP      80h ; ステータスバイトは80h以上
-            JP      C,ERROR_Track ; ステータスバイトでなければエラー
 ; MIDIイベントの種類によって処理を分ける
+            CP      0C0h ; Program Change
+            JR      Z,PARSE_P_CHANGE ;   プログラムチェンジの場合
             CP      90h 
             JR      Z,PARSE_NOTE_ONOFF ; ノートオンイベントの場合
             CP      80h 
             JR      Z,PARSE_NOTE_ONOFF ; ノートオフイベントの場合            CALL    PRINT_EVENT_TYPE
 ; 他のイベントもここで追加可能
+            CP      80h ; ステータスバイトは80h以上
+            JP      C,ERROR_Track ; ステータスバイトでなければエラー
             JP      NEXT_EVENT 
 
 SKIP_META_EVENT:     
@@ -313,23 +328,31 @@ NEXT_EVENT:
 ;            RET
             JP      PARSE_TRACK_EVENTS 
 
-PARSE_NOTE_ONOFF:       
-; ノートオンオフイベントのパース
+PARSE_NOTE_ONOFF:    
+            CALL    PRINT_NOTE 
+            CALL    PRINT_NEWLINE ; ノートオンオフイベントのパース
 ; アドレスをメモリから取得し、2バイト（ノート番号とベロシティ）を表示
             LD      HL,(PARSE_ADDR) 
-            INC     HL ; ステータスバイトの次のバイト（ノート番号）
-            LD      A,(HL) 
-            LD      DE,NOTE_LABEL 
-            CALL    PRINT_STRING 
-            CALL    PRINT_HEX 
-            INC     HL ; ベロシティ
-            LD      A,(HL) 
-            LD      DE,VELOCITY_LABEL 
-            CALL    PRINT_STRING 
-            CALL    PRINT_HEX 
+            LD      A,(HL) ; ステータスバイトの次のバイト（ノート番号）
+            CALL    PRINT_HEX_BYTE 
+            INC     HL 
+            LD      A,(HL) ; ベロシティ
+            CALL    PRINT_HEX_BYTE 
+            INC     HL 
             LD      (PARSE_ADDR),HL ; 更新されたアドレスをPARSE_ADDRに保存
             CALL    PRINT_NEWLINE 
-            RET      
+            JP      NEXT_EVENT 
+
+PARSE_P_CHANGE:      
+            CALL    PRINT_P_CHANGE 
+            CALL    PRINT_NEWLINE 
+            LD      HL,(PARSE_ADDR) 
+            LD      A,(HL) ; ステータスバイトの次のバイト（ノート番号）
+            INC     HL 
+            LD      (PARSE_ADDR),HL ; 更新されたアドレスをPARSE_ADDRに保存
+            CALL    PRINT_HEX_BYTE 
+            CALL    PRINT_NEWLINE 
+            JP      NEXT_EVENT 
 
 PRINT_EVENT_TYPE:    
             PUSH    HL 
@@ -415,6 +438,13 @@ PRINT_SPACE:
 PRINT_META: LD      DE,META_LABEL 
             JP      PRINT_STRING 
 
+PRINT_NOTE: LD      DE,NOTE_LABEL 
+            JP      PRINT_STRING 
+
+PRINT_P_CHANGE:      
+            LD      DE,P_CHANGE_LABEL 
+            JP      PRINT_STRING 
+
 PRINT_STRING:        
 ; DEレジスタで指された文字列を表示
             LD      C,9 
@@ -426,12 +456,20 @@ EXIT:
 
 
 ; データ領域
+FORMAT_TYPE: DW     1 ; フォーマットタイプ
+NUM_OF_TRACK: DW    1 ; トラック数
+TIME_DIVISION: DW   1 ; Time Divison
+TRACK_LEN:  DW      32 ; トラックごとの長さ
 PARSE_ADDR: DW      0 ; パース中のアドレスを格納するメモリ領域
+PARSE_TRACK_NO: DB  1 ; パース中のトラック番号
+PAESE_TRACK_LEN: DW 0 ; パース中のトラック長
+;  表示用ラベル
 TRACK_LENGTH_LABEL: DB "Track length:","$" 
 DELTA_LABEL: DB     "Delta time:","$" 
 EVENT_LABEL: DB     "Event:","$" 
 NOTE_LABEL: DB      "Note:",0Dh,0Ah,"$" 
 VELOCITY_LABEL: DB  "Velocity:",0Dh,0Ah,"$" 
+P_CHANGE_LABEL: DB  "Program Change:",0Dh,0Ah,"$" 
 HEX_STRING: DB      "00","$" ; 16進数表示用の文字列
 SPACE_LABEL: DB     " $" 
 CRLF:       DB      0Dh,0Ah,"$" 
@@ -440,7 +478,7 @@ NOTEON_LABEL: DB    "Note ON$"
 NOTEOFF_LABEL: DB   "Note OFF$" 
 
 ; MIDI Data dump from Untitled(2)
-MIDI_START:          
+MIDI_START2:         
 
             DB      0x4D,0x54,0x68,0x64,0x00,0x00,0x00,0x06,0x00,0x00,0x00,0x01,0x01,0x80,0x4D,0x54 ; 00000000
             DB      0x72,0x6B,0x00,0x00,0x02,0xC5,0x00,0xFF,0x58,0x04,0x04,0x02,0x18,0x08,0x00,0xFF ; 00000010
@@ -489,7 +527,7 @@ MIDI_START:
             DB      0x90,0x3C,0x32,0x60,0x80,0x3C,0x00,0x00,0x90,0x38,0x32,0x60,0x80,0x24,0x00,0x00 ; 000002C0
             DB      0x80,0x2C,0x00,0x00,0x80,0x38,0x00,0x00,0xFF,0x2F,0x00 ; 000002D0
 
-
+MIDI_START:          
 
             DB      "MThd",0x00,0x00,0x00,0x06,0x00,0x01,0x00,0x02,0x01,0x80 ; 00000000
             DB      "MTrk",0x00,0x00,0x01,0x38,0x00,0xFF,0x58,0x04,0x04,0x02,0x18,0x08,0x00,0xFF ; 00000010
@@ -522,6 +560,8 @@ MIDI_START:
             DB      "MThd",00,00,00,06,00,00,00,01,01,80H ; サンプルのMIDIヘッダ
             DB      "MTrk",00,00,08,0d0h,00,0ffh,58h,04,04,02,18h,08,00,0ffh 
             DB      72h,6bh,00,00,08,0d0h,00h,0ffh,58h,04,04,02,18h,08h,00,0ffh 
+
+
 
 
 
